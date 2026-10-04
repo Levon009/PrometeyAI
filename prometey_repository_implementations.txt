@@ -1,0 +1,1166 @@
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIActionPolicyRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIActionPermissionDao
+import com.xxlionxx.prometey.data.local.dao.AIActionPolicyDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.AIActionPolicy
+import com.xxlionxx.prometey.domain.repository.AIActionPolicyRepository
+
+class AIActionPolicyRepositoryImpl(
+    private val policyDao: AIActionPolicyDao,
+    private val permissionDao: AIActionPermissionDao
+) : AIActionPolicyRepository {
+
+    override suspend fun getPolicy(): AIActionPolicy {
+        val policy = policyDao.getPolicy(1)
+        val permissions = permissionDao.getPermissions()
+            .map { it.toDomain() }
+
+        return policy?.toDomain(permissions)
+            ?: AIActionPolicy(
+                permissions = permissions,
+                allowAutomaticActions = false
+            )
+    }
+
+    override suspend fun savePolicy(
+        policy: AIActionPolicy
+    ) {
+        policyDao.insertPolicy(
+            policy.toEntity()
+        )
+
+        policy.permissions.forEach { permission ->
+            permissionDao.insertPermission(
+                permission.toEntity()
+            )
+        }
+    }
+
+    override suspend fun updatePolicy(
+        policy: AIActionPolicy
+    ) {
+        policyDao.updatePolicy(
+            policy.toEntity()
+        )
+
+        policy.permissions.forEach { permission ->
+            permissionDao.updatePermission(
+                permission.toEntity()
+            )
+        }
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIActionRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIActionPermissionDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.domain.model.AIAction
+import com.xxlionxx.prometey.domain.model.AIActionPermission
+import com.xxlionxx.prometey.domain.model.AIActionResult
+import com.xxlionxx.prometey.domain.repository.AIActionRepository
+
+class AIActionRepositoryImpl(
+    private val permissionDao: AIActionPermissionDao
+) : AIActionRepository {
+
+    override suspend fun getPermission(
+        action: AIAction
+    ): AIActionPermission {
+        return permissionDao.getPermission(action.name)
+            ?.toDomain()
+            ?: AIActionPermission(
+                action = action,
+                isAllowed = false,
+                requiresConfirmation = true
+            )
+    }
+
+    override suspend fun execute(
+        action: AIAction,
+        parameters: Map<String, String>
+    ): AIActionResult {
+        return AIActionResult(
+            action = action,
+            success = false,
+            message = "Action execution is not implemented yet."
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIBehaviorRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIBehaviorDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.AIBehavior
+import com.xxlionxx.prometey.domain.repository.AIBehaviorRepository
+
+class AIBehaviorRepositoryImpl(
+    private val dao: AIBehaviorDao
+) : AIBehaviorRepository {
+
+    override suspend fun getBehavior(): AIBehavior {
+        return dao.getBehavior(1)?.toDomain()
+            ?: AIBehavior(
+                kindness = 0.5f,
+                empathy = 0.5f,
+                verbosity = 0.5f,
+                proactivity = 0.5f
+            )
+    }
+
+    override suspend fun saveBehavior(
+        behavior: AIBehavior
+    ) {
+        dao.insertBehavior(
+            behavior.toEntity()
+        )
+    }
+
+    override suspend fun updateBehavior(
+        behavior: AIBehavior
+    ) {
+        dao.updateBehavior(
+            behavior.toEntity()
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIImageRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.remote.datasource.OpenAIDataSource
+import com.xxlionxx.prometey.data.remote.mapper.toDomainResponse
+import com.xxlionxx.prometey.data.remote.mapper.toOpenAIImageRequest
+import com.xxlionxx.prometey.domain.model.AIMessageContext
+import com.xxlionxx.prometey.domain.model.AIResponse
+import com.xxlionxx.prometey.domain.repository.AIImageRepository
+
+class AIImageRepositoryImpl(
+    private val openAIDataSource: OpenAIDataSource
+) : AIImageRepository {
+
+    override suspend fun analyzeImages(
+        context: AIMessageContext,
+        imageUris: List<String>
+    ): AIResponse {
+
+        val request = context.toOpenAIImageRequest(
+            imageUris = imageUris,
+            model = "gpt-5"
+        )
+
+        val response = openAIDataSource.analyzeImages(request)
+
+        return response.toDomainResponse()
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIInstructionRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIInstructionDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.AIInstruction
+import com.xxlionxx.prometey.domain.repository.AIInstructionRepository
+
+class AIInstructionRepositoryImpl(
+    private val dao: AIInstructionDao
+) : AIInstructionRepository {
+
+    override suspend fun getActiveInstructions(): List<AIInstruction> {
+        return dao.getActiveInstructions()
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveInstruction(
+        instruction: AIInstruction
+    ) {
+        dao.insertInstruction(
+            instruction.toEntity()
+        )
+    }
+
+    override suspend fun updateInstruction(
+        instruction: AIInstruction
+    ) {
+        dao.updateInstruction(
+            instruction.toEntity()
+        )
+    }
+
+    override suspend fun deleteInstruction(
+        id: String
+    ) {
+        val instruction = dao.getActiveInstructions()
+            .firstOrNull { it.id == id }
+            ?: return
+
+        dao.deleteInstruction(instruction)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIKnowledgeRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIKnowledgeDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.AIKnowledge
+import com.xxlionxx.prometey.domain.repository.AIKnowledgeRepository
+
+class AIKnowledgeRepositoryImpl(
+    private val dao: AIKnowledgeDao
+) : AIKnowledgeRepository {
+
+    override suspend fun getKnowledge(
+        topic: String
+    ): List<AIKnowledge> {
+        return dao.getKnowledge()
+            .filter { it.topic == topic }
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getKnowledgeById(
+        id: String
+    ): AIKnowledge? {
+        return dao.getKnowledgeById(id)?.toDomain()
+    }
+
+    override suspend fun saveKnowledge(
+        knowledge: AIKnowledge
+    ) {
+        dao.insertKnowledge(
+            knowledge.toEntity()
+        )
+    }
+
+    override suspend fun updateKnowledge(
+        knowledge: AIKnowledge
+    ) {
+        dao.updateKnowledge(
+            knowledge.toEntity()
+        )
+    }
+
+    override suspend fun deleteKnowledge(
+        id: String
+    ) {
+        val knowledge = dao.getKnowledgeById(id)
+            ?: return
+
+        dao.deleteKnowledge(knowledge)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIModelRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIModelDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.domain.model.AIModel
+import com.xxlionxx.prometey.domain.repository.AIModelRepository
+
+class AIModelRepositoryImpl(
+    private val dao: AIModelDao
+) : AIModelRepository {
+
+    override suspend fun getAvailableModels(): List<AIModel> {
+        return dao.getAvailableModels()
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getModelById(
+        id: String
+    ): AIModel? {
+        return dao.getModelById(id)
+            ?.toDomain()
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AIRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.remote.mapper.toDomainResponse
+import com.xxlionxx.prometey.data.remote.mapper.toOpenAIRequest
+import com.xxlionxx.prometey.data.remote.datasource.OpenAIDataSource
+import com.xxlionxx.prometey.domain.model.AIMessageContext
+import com.xxlionxx.prometey.domain.model.AIResponse
+import com.xxlionxx.prometey.domain.repository.AIRepository
+
+class AIRepositoryImpl(
+    private val openAIDataSource: OpenAIDataSource
+) : AIRepository {
+
+    override suspend fun generateResponse(
+        context: AIMessageContext
+    ): AIResponse {
+
+        val request = context.toOpenAIRequest(
+            model = "gpt-5"
+        )
+
+        val response = openAIDataSource.generateResponse(request)
+
+        return response.toDomainResponse()
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AISettingsRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AIModelDao
+import com.xxlionxx.prometey.data.local.dao.AISettingsDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.AISettings
+import com.xxlionxx.prometey.domain.repository.AISettingsRepository
+
+class AISettingsRepositoryImpl(
+    private val settingsDao: AISettingsDao,
+    private val modelDao: AIModelDao
+) : AISettingsRepository {
+
+    override suspend fun getSettings(): AISettings {
+        val settings = settingsDao.getSettings("default")
+            ?: throw IllegalStateException("AI settings not found")
+
+        val model = modelDao.getModelById(settings.modelId)
+            ?.toDomain()
+            ?: throw IllegalStateException(
+                "AI model not found: ${settings.modelId}"
+            )
+
+        return settings.toDomain(model)
+    }
+
+    override suspend fun saveSettings(
+        settings: AISettings
+    ) {
+        settingsDao.insertSettings(
+            settings.toEntity()
+        )
+    }
+
+    override suspend fun updateSettings(
+        settings: AISettings
+    ) {
+        settingsDao.updateSettings(
+            settings.toEntity()
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AppSettingsRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.xxlionxx.prometey.data.local.appSettingsDataStore
+import com.xxlionxx.prometey.domain.repository.AppSettingsRepository
+import kotlinx.coroutines.flow.first
+
+class AppSettingsRepositoryImpl(
+    private val context: Context
+) : AppSettingsRepository {
+
+    override suspend fun getString(
+        key: String
+    ): String? {
+        val preferences = context.appSettingsDataStore.data.first()
+        return preferences[stringPreferencesKey(key)]
+    }
+
+    override suspend fun setString(
+        key: String,
+        value: String
+    ) {
+        context.appSettingsDataStore.edit { preferences ->
+            preferences[stringPreferencesKey(key)] = value
+        }
+    }
+
+    override suspend fun getBoolean(
+        key: String
+    ): Boolean? {
+        val preferences = context.appSettingsDataStore.data.first()
+        return preferences[booleanPreferencesKey(key)]
+    }
+
+    override suspend fun setBoolean(
+        key: String,
+        value: Boolean
+    ) {
+        context.appSettingsDataStore.edit { preferences ->
+            preferences[booleanPreferencesKey(key)] = value
+        }
+    }
+
+    override suspend fun remove(
+        key: String
+    ) {
+        context.appSettingsDataStore.edit { preferences ->
+            preferences.remove(stringPreferencesKey(key))
+            preferences.remove(booleanPreferencesKey(key))
+        }
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\AttachmentRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.AttachmentDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.Attachment
+import com.xxlionxx.prometey.domain.repository.AttachmentRepository
+
+class AttachmentRepositoryImpl(
+    private val dao: AttachmentDao
+) : AttachmentRepository {
+
+    override suspend fun getAttachments(
+        messageId: String
+    ): List<Attachment> {
+        return dao.getAttachments(messageId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveAttachment(
+        attachment: Attachment
+    ) {
+        dao.insertAttachment(
+            attachment.toEntity()
+        )
+    }
+
+    override suspend fun deleteAttachment(
+        id: String
+    ) {
+        val attachment = dao.getAttachmentById(id)
+            ?: return
+
+        dao.deleteAttachment(attachment)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ConversationRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ConversationDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.Conversation
+import com.xxlionxx.prometey.domain.repository.ConversationRepository
+
+class ConversationRepositoryImpl(
+    private val dao: ConversationDao
+) : ConversationRepository {
+
+    override suspend fun getConversations(
+        userId: String
+    ): List<Conversation> {
+        return dao.getConversations(userId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getConversationById(
+        id: String
+    ): Conversation? {
+        return dao.getConversationById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveConversation(
+        conversation: Conversation
+    ) {
+        dao.insertConversation(
+            conversation.toEntity()
+        )
+    }
+
+    override suspend fun updateConversation(
+        conversation: Conversation
+    ) {
+        dao.updateConversation(
+            conversation.toEntity()
+        )
+    }
+
+    override suspend fun deleteConversation(
+        id: String
+    ) {
+        val conversation = dao.getConversationById(id)
+            ?: return
+
+        dao.deleteConversation(conversation)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastDataRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.remote.datasource.ForecastDataSource
+import com.xxlionxx.prometey.domain.model.ForecastSource
+import com.xxlionxx.prometey.domain.repository.ForecastDataRepository
+
+class ForecastDataRepositoryImpl(
+    private val dataSource: ForecastDataSource
+) : ForecastDataRepository {
+
+    override suspend fun getSources(
+        topic: String,
+        query: String
+    ): List<ForecastSource> {
+        return dataSource.getSources(
+            topic = topic,
+            query = query
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastFactorRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastFactorDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.ForecastFactor
+import com.xxlionxx.prometey.domain.repository.ForecastFactorRepository
+
+class ForecastFactorRepositoryImpl(
+    private val dao: ForecastFactorDao
+) : ForecastFactorRepository {
+
+    override suspend fun getFactors(
+        forecastId: String
+    ): List<ForecastFactor> {
+        return dao.getFactors(forecastId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveFactor(
+        factor: ForecastFactor
+    ) {
+        dao.insertFactor(
+            factor.toEntity()
+        )
+    }
+
+    override suspend fun updateFactor(
+        factor: ForecastFactor
+    ) {
+        dao.updateFactor(
+            factor.toEntity()
+        )
+    }
+
+    override suspend fun deleteFactor(
+        id: String
+    ) {
+        val factor = dao.getFactorById(id)
+            ?: return
+
+        dao.deleteFactor(factor)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastFactorSourceRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastFactorSourceDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.ForecastFactorSource
+import com.xxlionxx.prometey.domain.repository.ForecastFactorSourceRepository
+
+class ForecastFactorSourceRepositoryImpl(
+    private val dao: ForecastFactorSourceDao
+) : ForecastFactorSourceRepository {
+
+    override suspend fun getSourcesForFactor(
+        factorId: String
+    ): List<ForecastFactorSource> {
+        return dao.getSourcesForFactor(factorId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveRelation(
+        relation: ForecastFactorSource
+    ) {
+        dao.insertRelation(
+            relation.toEntity()
+        )
+    }
+
+    override suspend fun deleteRelation(
+        factorId: String,
+        sourceId: String
+    ) {
+        val relation = dao.getRelation(
+            factorId = factorId,
+            sourceId = sourceId
+        ) ?: return
+
+        dao.deleteRelation(relation)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastRecommendationRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastRecommendationDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.ForecastRecommendation
+import com.xxlionxx.prometey.domain.repository.ForecastRecommendationRepository
+
+class ForecastRecommendationRepositoryImpl(
+    private val dao: ForecastRecommendationDao
+) : ForecastRecommendationRepository {
+
+    override suspend fun getRecommendations(
+        forecastId: String
+    ): List<ForecastRecommendation> {
+        return dao.getRecommendations(forecastId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveRecommendation(
+        recommendation: ForecastRecommendation
+    ) {
+        dao.insertRecommendation(
+            recommendation.toEntity()
+        )
+    }
+
+    override suspend fun updateRecommendation(
+        recommendation: ForecastRecommendation
+    ) {
+        dao.updateRecommendation(
+            recommendation.toEntity()
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.Forecast
+import com.xxlionxx.prometey.domain.repository.ForecastRepository
+
+class ForecastRepositoryImpl(
+    private val dao: ForecastDao
+) : ForecastRepository {
+
+    override suspend fun getForecasts(
+        userId: String
+    ): List<Forecast> {
+        return dao.getForecasts(userId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getForecastById(
+        id: String
+    ): Forecast? {
+        return dao.getForecastById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveForecast(
+        forecast: Forecast
+    ) {
+        dao.insertForecast(
+            forecast.toEntity()
+        )
+    }
+
+    override suspend fun updateForecast(
+        forecast: Forecast
+    ) {
+        dao.updateForecast(
+            forecast.toEntity()
+        )
+    }
+
+    override suspend fun deleteForecast(
+        id: String
+    ) {
+        val forecast = dao.getForecastById(id)
+            ?: return
+
+        dao.deleteForecast(forecast)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastScenarioRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastScenarioDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.ForecastScenario
+import com.xxlionxx.prometey.domain.repository.ForecastScenarioRepository
+
+class ForecastScenarioRepositoryImpl(
+    private val dao: ForecastScenarioDao
+) : ForecastScenarioRepository {
+
+    override suspend fun getScenarios(
+        forecastId: String
+    ): List<ForecastScenario> {
+        return dao.getScenarios(forecastId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun saveScenario(
+        scenario: ForecastScenario
+    ) {
+        dao.insertScenario(
+            scenario.toEntity()
+        )
+    }
+
+    override suspend fun updateScenario(
+        scenario: ForecastScenario
+    ) {
+        dao.updateScenario(
+            scenario.toEntity()
+        )
+    }
+
+    override suspend fun deleteScenario(
+        id: String
+    ) {
+        val scenario = dao.getScenarioById(id)
+            ?: return
+
+        dao.deleteScenario(scenario)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\ForecastSourceRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.ForecastSourceDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.ForecastSource
+import com.xxlionxx.prometey.domain.repository.ForecastSourceRepository
+
+class ForecastSourceRepositoryImpl(
+    private val dao: ForecastSourceDao
+) : ForecastSourceRepository {
+
+    override suspend fun getSourceById(
+        id: String
+    ): ForecastSource? {
+        return dao.getSourceById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveSource(
+        source: ForecastSource
+    ) {
+        dao.insertSource(
+            source.toEntity()
+        )
+    }
+
+    override suspend fun deleteSource(
+        id: String
+    ) {
+        val source = dao.getSourceById(id)
+            ?: return
+
+        dao.deleteSource(source)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\MemoryRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.MemoryDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.Memory
+import com.xxlionxx.prometey.domain.repository.MemoryRepository
+
+class MemoryRepositoryImpl(
+    private val dao: MemoryDao
+) : MemoryRepository {
+
+    override suspend fun getMemories(
+        userId: String
+    ): List<Memory> {
+        return dao.getMemories(userId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getMemoryById(
+        id: String
+    ): Memory? {
+        return dao.getMemoryById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveMemory(
+        memory: Memory
+    ) {
+        dao.insertMemory(
+            memory.toEntity()
+        )
+    }
+
+    override suspend fun updateMemory(
+        memory: Memory
+    ) {
+        dao.updateMemory(
+            memory.toEntity()
+        )
+    }
+
+    override suspend fun deleteMemory(
+        id: String
+    ) {
+        val memory = dao.getMemoryById(id)
+            ?: return
+
+        dao.deleteMemory(memory)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\MessageRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.MessageDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.Message
+import com.xxlionxx.prometey.domain.repository.AttachmentRepository
+import com.xxlionxx.prometey.domain.repository.MessageRepository
+
+class MessageRepositoryImpl(
+    private val dao: MessageDao,
+    private val attachmentRepository: AttachmentRepository
+) : MessageRepository {
+
+    override suspend fun getMessages(
+        conversationId: String
+    ): List<Message> {
+        return dao.getMessages(conversationId).map { message ->
+            message.toDomain(
+                attachments = attachmentRepository.getAttachments(message.id)
+            )
+        }
+    }
+
+    override suspend fun getMessageById(
+        id: String
+    ): Message? {
+        val message = dao.getMessageById(id)
+            ?: return null
+
+        return message.toDomain(
+            attachments = attachmentRepository.getAttachments(message.id)
+        )
+    }
+
+    override suspend fun saveMessage(
+        message: Message
+    ) {
+        dao.insertMessage(
+            message.toEntity()
+        )
+    }
+
+    override suspend fun updateMessage(
+        message: Message
+    ) {
+        dao.updateMessage(
+            message.toEntity()
+        )
+    }
+
+    override suspend fun deleteMessage(
+        id: String
+    ) {
+        val message = dao.getMessageById(id)
+            ?: return
+
+        dao.deleteMessage(message)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\SecureStorageRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.domain.repository.SecureStorageRepository
+
+class SecureStorageRepositoryImpl : SecureStorageRepository {
+
+    private val storage = mutableMapOf<String, String>()
+
+    override suspend fun save(
+        key: String,
+        value: String
+    ) {
+        storage[key] = value
+    }
+
+    override suspend fun get(
+        key: String
+    ): String? {
+        return storage[key]
+    }
+
+    override suspend fun delete(
+        key: String
+    ) {
+        storage.remove(key)
+    }
+
+    override suspend fun contains(
+        key: String
+    ): Boolean {
+        return storage.containsKey(key)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\UserGoalRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.UserGoalDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.UserGoal
+import com.xxlionxx.prometey.domain.repository.UserGoalRepository
+
+class UserGoalRepositoryImpl(
+    private val dao: UserGoalDao
+) : UserGoalRepository {
+
+    override suspend fun getGoals(
+        userId: String
+    ): List<UserGoal> {
+        return dao.getGoals(userId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun getGoalById(
+        id: String
+    ): UserGoal? {
+        return dao.getGoalById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveGoal(
+        goal: UserGoal
+    ) {
+        dao.insertGoal(
+            goal.toEntity()
+        )
+    }
+
+    override suspend fun updateGoal(
+        goal: UserGoal
+    ) {
+        dao.updateGoal(
+            goal.toEntity()
+        )
+    }
+
+    override suspend fun deleteGoal(
+        id: String
+    ) {
+        val goal = dao.getGoalById(id)
+            ?: return
+
+        dao.deleteGoal(goal)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\UserPreferenceRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.UserPreferenceDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.UserPreference
+import com.xxlionxx.prometey.domain.repository.UserPreferenceRepository
+
+class UserPreferenceRepositoryImpl(
+    private val dao: UserPreferenceDao
+) : UserPreferenceRepository {
+
+    override suspend fun getPreferences(
+        userId: String
+    ): List<UserPreference> {
+        return dao.getPreferences(userId)
+            .map { it.toDomain() }
+    }
+
+    override suspend fun savePreference(
+        preference: UserPreference
+    ) {
+        dao.insertPreference(
+            preference.toEntity()
+        )
+    }
+
+    override suspend fun updatePreference(
+        preference: UserPreference
+    ) {
+        dao.updatePreference(
+            preference.toEntity()
+        )
+    }
+
+    override suspend fun deletePreference(
+        id: String
+    ) {
+        val preference = dao.getPreferenceById(id)
+            ?: return
+
+        dao.deletePreference(preference)
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\UserProfileRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.UserProfileDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.UserProfile
+import com.xxlionxx.prometey.domain.repository.UserProfileRepository
+
+class UserProfileRepositoryImpl(
+    private val dao: UserProfileDao
+) : UserProfileRepository {
+
+    override suspend fun getProfile(
+        userId: String
+    ): UserProfile? {
+        return dao.getProfile(userId)
+            ?.toDomain()
+    }
+
+    override suspend fun saveProfile(
+        profile: UserProfile
+    ) {
+        dao.insertProfile(
+            profile.toEntity()
+        )
+    }
+
+    override suspend fun updateProfile(
+        profile: UserProfile
+    ) {
+        dao.updateProfile(
+            profile.toEntity()
+        )
+    }
+}
+
+============================================================
+FILE: C:\Users\User\AndroidStudioProjects\Prometey\app\src\main\java\com\xxlionxx\prometey\data\repository\UserRepositoryImpl.kt
+============================================================
+package com.xxlionxx.prometey.data.repository
+
+import com.xxlionxx.prometey.data.local.dao.UserDao
+import com.xxlionxx.prometey.data.local.mapper.toDomain
+import com.xxlionxx.prometey.data.local.mapper.toEntity
+import com.xxlionxx.prometey.domain.model.User
+import com.xxlionxx.prometey.domain.repository.UserRepository
+
+class UserRepositoryImpl(
+    private val dao: UserDao
+) : UserRepository {
+
+    override suspend fun getUserById(
+        id: String
+    ): User? {
+        return dao.getUserById(id)
+            ?.toDomain()
+    }
+
+    override suspend fun saveUser(
+        user: User
+    ) {
+        dao.insertUser(
+            user.toEntity()
+        )
+    }
+
+    override suspend fun updateUser(
+        user: User
+    ) {
+        dao.updateUser(
+            user.toEntity()
+        )
+    }
+}
+
